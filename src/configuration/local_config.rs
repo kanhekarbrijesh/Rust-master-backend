@@ -1,13 +1,12 @@
 use crate::_utils::{
     constants::{CONSTANTS, ENV_KEYS},
-    functions::get_env_var,
+    functions::{get_env_var, load_env_file},
 };
 
 use super::Settings;
 
 pub fn settings() -> Settings {
-    // Optional: Load .env.local here if you still want .env file support
-    dotenvy::from_filename(".env").ok();
+    load_env_file(".env");
 
     Settings {
         app_name: CONSTANTS.app_name.to_string(),
