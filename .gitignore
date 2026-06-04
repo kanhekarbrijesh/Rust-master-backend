@@ -1,1 +1,48 @@
-/target
+# ==========================================
+# 1. ENVIRONMENT / SECRET FILES (CRITICAL)
+# ==========================================
+# Blocks all root and sub-folder environment configuration files
+.env
+.env.*
+.env.dev
+.env.stage
+.env.prod
+.env.local
+
+# Backup files that crates like dotenvy might leave behind
+*.env
+.env.sample
+!.env.example # Keep this unblocked so teammates know what keys to set!
+
+# ==========================================
+# 2. RUST / CARGO ARTIFACTS
+# ==========================================
+# The "target" directory contains all compiled binaries, build scripts, and dependencies
+/target/
+
+# Generated when running cargo instructions manually or inside CI pipelines
+cargo-timing.bin
+
+# ==========================================
+# 3. IDE / EDITOR SPECIFIC CONFIGS
+# ==========================================
+# JetBrains / IntelliJ / Clion / RustRover
+.idea/
+*.iml
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Linux / macOS system garbage files
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# 4. COMPILER & DIAGNOSTIC LOGS
+# ==========================================
+# Local development log dumps or test traces
+*.log
+log/
