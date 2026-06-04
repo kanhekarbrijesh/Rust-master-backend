@@ -1,18 +1,19 @@
 use crate::_utils::{
-    constants::{CONSTANTS, ENV_KEYS},
+    constants::{app_constants, app_keys},
     functions::{get_env_var, load_env_file},
 };
 
-use super::Settings;
+use super::Configs;
 
-pub fn settings() -> Settings {
+pub fn settings() -> Configs {
     load_env_file(".env");
 
-    Settings {
-        app_name: CONSTANTS.app_name.to_string(),
-        mongo_uri: get_env_var(ENV_KEYS.mongo_uri, ENV_KEYS.mongo_uri_default),
-        port: get_env_var(ENV_KEYS.port, ENV_KEYS.port_default)
+    Configs {
+        app_name: app_constants::APP_NAME.to_string(),
+        mongo_uri: get_env_var(app_keys::MONGO_URI, app_constants::MONGO_URI_DEFAULT),
+        port: get_env_var(app_keys::PORT, app_constants::PORT_DEFAULT)
             .parse()
             .unwrap_or(8080),
+        current_env: "local".into(),
     }
 }

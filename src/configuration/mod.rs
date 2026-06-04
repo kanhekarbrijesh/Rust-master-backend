@@ -1,4 +1,4 @@
-use crate::configuration::config::Settings;
+use crate::configuration::config::Configs;
 
 pub mod config;
 pub mod dev_config;

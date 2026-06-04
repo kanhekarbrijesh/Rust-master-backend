@@ -1,33 +1,31 @@
-use axum::{Router, routing::get};
 use std::net::SocketAddr;
 
-use crate::{_utils::constants::CONSTANTS, configuration::config::get_settings};
+use axum::Router;
+
+use crate::{
+    configuration::config::get_configurations,
+    services::logger_services::common_logging_services::AppLogger,
+};
 
 mod _utils;
 mod configuration;
+mod services;
 
 #[tokio::main]
 async fn main() {
-    // load config
-    let config = get_settings();
-    //  setup routes
-    let app = Router::new().route("/", get(handler));
+    // load configurations
+    let config = get_configurations();
 
-    // setup server
-    let addr = SocketAddr::from((CONSTANTS.app_ip, config.port));
+    // setup logger
+    AppLogger::new(config).log_app_config();
+
+    //    setup routes
+    let routes = Router::new();
+
+    // setup listener
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
-    println!(
-        "Server for app {} running at http://{:?}:{}",
-        CONSTANTS.app_name,
-        std::net::Ipv4Addr::from(CONSTANTS.app_ip),
-        config.port
-    );
-
     // start server
-    axum::serve(listener, app).await.unwrap();
-}
-
-async fn handler() -> &'static str {
-    "Hello, World!"
+    axum::serve(listener, routes).await.unwrap();
 }

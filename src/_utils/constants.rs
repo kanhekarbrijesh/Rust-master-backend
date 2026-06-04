@@ -1,25 +1,24 @@
-// 1. Define the struct to act as your object
-pub struct AppConstants {
-    pub app_name: &'static str,
-    pub app_ip: [u8; 4],
-}
-
 // 2. Create the "predefined object" as a constant
-pub const CONSTANTS: AppConstants = AppConstants {
-    app_name: "MyStartupApp",
-    app_ip: [127, 0, 0, 1],
-};
+pub mod app_constants {
+    pub const APP_NAME: &str = "MyStartupApp";
+    pub const APP_IP: [u8; 4] = [127, 0, 0, 1];
 
-pub struct EnvKeys {
-    pub mongo_uri: &'static str,
-    pub mongo_uri_default: &'static str,
-    pub port: &'static str,
-    pub port_default: &'static str,
+    pub const MONGO_URI_DEFAULT: &str = "localhost:5432";
+    pub const PORT_DEFAULT: &str = "8080";
 }
 
-pub const ENV_KEYS: EnvKeys = EnvKeys {
-    mongo_uri: "DATABASE_URL",
-    mongo_uri_default: "localhost:5432",
-    port: "PORT",
-    port_default: "8080",
-};
+// 3. Define another struct for environment variable keys
+
+pub mod app_keys {
+    pub const MONGO_URI: &str = "DATABASE_URL";
+    pub const PORT: &str = "PORT";
+    pub const APP_ENV: &str = "APP_ENV";
+}
+
+// hardcoded constants for environments
+pub mod app_environments {
+    pub const LOCAL: &str = "local";
+    pub const DEV: &str = "development";
+    pub const STAGE: &str = "staging";
+    pub const PROD: &str = "production";
+}
