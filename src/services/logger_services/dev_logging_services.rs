@@ -2,7 +2,13 @@ use std::net::Ipv4Addr;
 
 use tracing::info;
 
-use crate::{_utils::constants::app_constants, configuration::config::Configs};
+use crate::{
+    _utils::{
+        constants::app_constants,
+        security::{SecretMaskStrategy, SecureLogUtil},
+    },
+    configuration::config::Configs,
+};
 
 pub struct DevLogger {
     log_config: Configs,
@@ -16,7 +22,15 @@ impl DevLogger {
     pub fn log_dev_config(&self) {
         info!("Running in Development Environment");
         info!("App Name: {}", self.log_config.app_name);
-        info!("Mongo URI: {}", self.log_config.mongo_uri);
+
+        // 1. Secure MongoDB URI (Database URL parsing strategy)
+        let safe_mongo = SecureLogUtil::mask_value(
+            "MONGO_URI",
+            &self.log_config.mongo_uri,
+            SecretMaskStrategy::DatabaseUri,
+        );
+        tracing::info!("Database Connection: {}", safe_mongo);
+
         info!("Port: {}", self.log_config.port);
         info!(
             "local endpoint is http::localhost:{}  or http://{}:{}",
