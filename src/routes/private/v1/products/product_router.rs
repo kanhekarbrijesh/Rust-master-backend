@@ -1,6 +1,6 @@
 // src/routes/v1//product_router.rs
 use crate::{
-    connections::app_state::AppState,
+    infrastructure::app_state::AppState,
     routes::private::v1::products::product_controller::ProductController,
 };
 use axum::{

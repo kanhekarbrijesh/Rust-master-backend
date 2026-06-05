@@ -1,5 +1,5 @@
 pub mod private;
-use crate::{connections::app_state::AppState, routes::private::private_routes};
+use crate::{infrastructure::app_state::AppState, routes::private::private_routes};
 
 pub fn index_route() -> axum::Router<AppState> {
     axum::Router::new()

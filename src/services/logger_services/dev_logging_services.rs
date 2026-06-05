@@ -33,7 +33,7 @@ impl DevLogger {
 
         info!("Port: {}", self.log_config.port);
         info!(
-            "local endpoint is http::localhost:{}  or http://{}:{}",
+            "local endpoint is http://localhost:{}  or http://{}:{}",
             self.log_config.port,
             Ipv4Addr::from(app_constants::APP_IP),
             self.log_config.port

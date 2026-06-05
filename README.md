@@ -38,7 +38,7 @@ A robust, asynchronous, multi-threaded production backend blueprint built with *
 Rust's standard library does not include a built-in runtime for asynchronous operations. We utilize **Tokio** as our multi-threaded executor and execution engine alongside **Axum** for HTTP routing.
 
 * **The `#[tokio::main]` Macro:** Transforms the synchronous execution entry point (`fn main`) into an asynchronous context capable of driving lightweight green tasks natively.
-* **Non-Blocking Execution:** Uses `tokio::net::TcpListener` to asynchronously accept TCP connections without stalling server operations.
+* **Non-Blocking Execution:** Uses `tokio::net::TcpListener` to asynchronously accept TCP infrastructure without stalling server operations.
 
 ### 2. The First "Hello World" Endpoint
 

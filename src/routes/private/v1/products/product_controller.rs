@@ -1,6 +1,6 @@
 // src/routes/v1/products/product_controller.rs
 use crate::{
-    connections::app_state::AppState,
+    infrastructure::app_state::AppState,
     domain::products::product_types::ProductItem,
     services::domain_services::product_services::{
         add_product_handler, delete_product_handler, get_all_products_handler,

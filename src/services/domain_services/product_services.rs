@@ -1,4 +1,4 @@
-use crate::{connections::app_state::AppState, domain::products::product_types::ProductItem};
+use crate::{domain::products::product_types::ProductItem, infrastructure::app_state::AppState};
 use axum::{
     Json,
     extract::{Path, State},
@@ -9,6 +9,7 @@ use futures::future::BoxFuture;
 use futures::stream::TryStreamExt;
 use garde::Validate;
 use mongodb::bson::{doc, oid::ObjectId};
+use tracing::{error, info};
 
 // ==========================================
 // 1. CREATE (Add Product)
@@ -27,16 +28,15 @@ pub fn add_product_handler(
                 .into_response();
         }
 
-        let collection = state.db.collection::<ProductItem>("products");
-
-        match collection.insert_one(payload).await {
-            Ok(result) => {
-                let generated_id = result.inserted_id.as_object_id().unwrap().to_hex();
-                tracing::info!(
-                    "Successfully inserted product record with ID: {}",
-                    generated_id
-                );
-
+        match state
+            .mongodb_collections
+            .product_mongodb
+            .product_repo
+            .create(payload)
+            .await
+        {
+            Ok(object_id) => {
+                let generated_id = object_id.to_hex();
                 (
                     StatusCode::CREATED,
                     Json(serde_json::json!({ "id": generated_id })),
@@ -44,17 +44,20 @@ pub fn add_product_handler(
                     .into_response()
             }
             Err(err) => {
-                if let mongodb::error::ErrorKind::Command(ref reply) = *err.kind
-                    && reply.code == 11000
+                // Now 'err' IS a mongodb::error::Error.
+                // We look inside 'err.kind' to check if it's a Command error.
+                let _: () = if let mongodb::error::ErrorKind::Command(ref command_error) = *err.kind
+                    && command_error.code == 11000
                 {
                     return (
-                            StatusCode::CONFLICT,
-                            Json(serde_json::json!({ "error": "A product with this unique constraint identifier already exists." })),
-                        ).into_response();
-                }
+                        StatusCode::CONFLICT,
+                        Json(serde_json::json!({ "error": "Duplicate product" })),
+                    )
+                        .into_response();
+                };
 
-                tracing::error!("MongoDB write error encountered: {:?}", err);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database write failure").into_response()
+                error!("MongoDB write error: {:?}", err);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Database failure").into_response()
             }
         }
     })
@@ -78,7 +81,7 @@ pub fn get_all_products_handler(State(state): State<AppState>) -> BoxFuture<'sta
                 (StatusCode::OK, Json(products)).into_response()
             }
             Err(err) => {
-                tracing::error!("Failed to fetch products from MongoDB: {:?}", err);
+                error!("Failed to fetch products from MongoDB: {:?}", err);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Failed to retrieve records",
@@ -108,7 +111,7 @@ pub fn get_product_by_id_handler(
             Ok(Some(product)) => (StatusCode::OK, Json(product)).into_response(),
             Ok(None) => (StatusCode::NOT_FOUND, "Product record not found").into_response(),
             Err(err) => {
-                tracing::error!("MongoDB find_one error: {:?}", err);
+                error!("MongoDB find_one error: {:?}", err);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Database lookup failure").into_response()
             }
         }
@@ -164,7 +167,7 @@ pub fn update_product_handler(
                         .into_response();
                 }
 
-                tracing::info!("Successfully updated product ID: {}", id);
+                info!("Successfully updated product ID: {}", id);
                 (
                     StatusCode::OK,
                     Json(serde_json::json!({ "message": "Product updated successfully" })),
@@ -219,7 +222,7 @@ pub fn delete_product_handler(
                     return (StatusCode::NOT_FOUND, "No matching product found to delete")
                         .into_response();
                 }
-                tracing::info!("Successfully deleted product record ID: {}", id);
+                info!("Successfully deleted product record ID: {}", id);
                 (
                     StatusCode::OK,
                     Json(serde_json::json!({ "message": "Product deleted successfully" })),
@@ -227,7 +230,7 @@ pub fn delete_product_handler(
                     .into_response()
             }
             Err(err) => {
-                tracing::error!("MongoDB delete_one error: {:?}", err);
+                error!("MongoDB delete_one error: {:?}", err);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Database deletion failure",

@@ -1,4 +1,4 @@
-use crate::connections::app_state::AppState;
+use crate::infrastructure::app_state::AppState;
 
 mod v1;
 

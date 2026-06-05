@@ -8,7 +8,7 @@
 
 # learn how routing works with "axum::{Router,route}"  : how to inititialize it , and how to use ( route , next , merge ) , and also how to use middleware
 
-# setup appState to store data and connections across whole app , and learn how to use it by passing it in router::new().withState(AppState), and use it anywhere inside route with (State(state):State(AppState))
+# setup appState to store data and infrastructure across whole app , and learn how to use it by passing it in router::new().withState(AppState), and use it anywhere inside route with (State(state):State(AppState))
 
 # mongodb crud ( start commit id : , end commit id : )
 

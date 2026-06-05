@@ -3,15 +3,15 @@ use std::net::SocketAddr;
 use axum::Router;
 
 use crate::{
-    configuration::config::get_configurations, connections::app_state::AppState,
+    configuration::config::get_configurations, infrastructure::app_state::AppState,
     routes::index_route, services::logger_services::common_logging_services::AppLogger,
 };
 
 // local crates
 mod _utils;
 mod configuration;
-mod connections;
 mod domain;
+mod infrastructure;
 mod routes;
 mod services;
 

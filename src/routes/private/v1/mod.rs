@@ -1,5 +1,5 @@
 use crate::{
-    connections::app_state::AppState, routes::private::v1::products::product_router::product_router,
+    infrastructure::app_state::AppState, routes::private::v1::products::product_router::product_router,
 };
 
 pub mod products;
