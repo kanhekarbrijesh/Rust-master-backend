@@ -1,4 +1,7 @@
-use crate::{domain::products::product_types::ProductItem, infrastructure::app_state::AppState};
+use crate::{
+    domain::products::{product_dto::ProductDto, product_types::ProductItem},
+    infrastructure::app_state::AppState,
+};
 use axum::{
     Json,
     extract::{Path, State},
@@ -15,7 +18,7 @@ use tracing::{error, info};
 // ==========================================
 pub fn add_product_handler(
     State(state): State<AppState>,
-    Json(payload): Json<ProductItem>,
+    Json(payload): Json<ProductDto>,
 ) -> BoxFuture<'static, Response> {
     Box::pin(async move {
         // 🛑 EXACT FIX: Parentheses are completely empty here now!
@@ -27,11 +30,14 @@ pub fn add_product_handler(
                 .into_response();
         }
 
+        // ✅ CORRECT: Convert DTO to Entity before sending to the database
+        let product_item: ProductItem = payload.into();
+
         match state
             .mongodb_collections
             .product_mongodb
             .product_repo
-            .create(payload)
+            .create(product_item)
             .await
         {
             Ok(object_id) => {
@@ -123,7 +129,7 @@ pub fn get_product_by_id_handler(
 pub fn update_product_handler(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    Json(payload): Json<ProductItem>,
+    Json(payload): Json<ProductDto>,
 ) -> BoxFuture<'static, Response> {
     Box::pin(async move {
         // 🛑 EXACT FIX: Parentheses are completely empty here now!
