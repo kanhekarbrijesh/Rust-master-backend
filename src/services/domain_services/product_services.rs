@@ -6,7 +6,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use futures::future::BoxFuture;
-use futures::stream::TryStreamExt;
 use garde::Validate;
 use mongodb::bson::{doc, oid::ObjectId};
 use tracing::{error, info};
@@ -68,18 +67,14 @@ pub fn add_product_handler(
 // ==========================================
 pub fn get_all_products_handler(State(state): State<AppState>) -> BoxFuture<'static, Response> {
     Box::pin(async move {
-        let collection = state.db.collection::<ProductItem>("products");
-
-        match collection.find(doc! {}).await {
-            Ok(mut cursor) => {
-                let mut products = Vec::new();
-
-                while let Ok(Some(product)) = cursor.try_next().await {
-                    products.push(product);
-                }
-
-                (StatusCode::OK, Json(products)).into_response()
-            }
+        match state
+            .mongodb_collections
+            .product_mongodb
+            .product_repo
+            .find()
+            .await
+        {
+            Ok(products) => (StatusCode::OK, Json(products)).into_response(),
             Err(err) => {
                 error!("Failed to fetch products from MongoDB: {:?}", err);
                 (
@@ -105,9 +100,13 @@ pub fn get_product_by_id_handler(
             Err(_) => return (StatusCode::BAD_REQUEST, "Invalid ID string format").into_response(),
         };
 
-        let collection = state.db.collection::<ProductItem>("products");
-
-        match collection.find_one(doc! { "_id": obj_id }).await {
+        match state
+            .mongodb_collections
+            .product_mongodb
+            .product_repo
+            .find_by_id(&obj_id.to_string())
+            .await
+        {
             Ok(Some(product)) => (StatusCode::OK, Json(product)).into_response(),
             Ok(None) => (StatusCode::NOT_FOUND, "Product record not found").into_response(),
             Err(err) => {
@@ -141,8 +140,6 @@ pub fn update_product_handler(
             Err(_) => return (StatusCode::BAD_REQUEST, "Invalid ID string format").into_response(),
         };
 
-        let collection = state.db.collection::<ProductItem>("products");
-
         let update_doc = doc! {
             "$set": {
                 "sku": payload.sku,
@@ -157,12 +154,15 @@ pub fn update_product_handler(
             }
         };
 
-        match collection
-            .update_one(doc! { "_id": obj_id }, update_doc)
+        match state
+            .mongodb_collections
+            .product_mongodb
+            .product_repo
+            .update(&obj_id.to_string(), update_doc)
             .await
         {
             Ok(result) => {
-                if result.matched_count == 0 {
+                if !result {
                     return (StatusCode::NOT_FOUND, "No matching product found to update")
                         .into_response();
                 }
@@ -214,11 +214,15 @@ pub fn delete_product_handler(
             Err(_) => return (StatusCode::BAD_REQUEST, "Invalid ID string format").into_response(),
         };
 
-        let collection = state.db.collection::<ProductItem>("products");
-
-        match collection.delete_one(doc! { "_id": obj_id }).await {
+        match state
+            .mongodb_collections
+            .product_mongodb
+            .product_repo
+            .delete(&obj_id.to_string())
+            .await
+        {
             Ok(result) => {
-                if result.deleted_count == 0 {
+                if !result {
                     return (StatusCode::NOT_FOUND, "No matching product found to delete")
                         .into_response();
                 }

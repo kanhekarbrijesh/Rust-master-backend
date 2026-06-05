@@ -1,3 +1,4 @@
+use futures::stream::TryStreamExt;
 use mongodb::{
     Collection,
     bson::{doc, oid::ObjectId},
@@ -34,14 +35,23 @@ where
         })
     }
 
+    pub async fn find(&self) -> Result<Vec<T>, mongodb::error::Error> {
+        // 1. Get the cursor
+        let cursor = self.collection.find(doc! {}).await?;
+
+        // 2. Turn the cursor into a stream and collect it into a Vec
+        // This automatically handles the Result<T, Error> internally
+        let items: Vec<T> = cursor.try_collect().await?;
+
+        Ok(items)
+    }
+
     // READ
-    pub async fn find_by_id(&self, id: &str) -> Result<Option<T>, String> {
-        let oid = ObjectId::parse_str(id).map_err(|_| "Invalid ID format")?;
+    pub async fn find_by_id(&self, id: &str) -> Result<Option<T>, mongodb::error::Error> {
+        let oid = ObjectId::parse_str(id)
+            .map_err(|_| mongodb::error::Error::custom("Invalid ID format"))?;
         // Removed 'None'
-        self.collection
-            .find_one(doc! { "_id": oid })
-            .await
-            .map_err(|e| e.to_string())
+        self.collection.find_one(doc! { "_id": oid }).await
     }
 
     // UPDATE
@@ -49,14 +59,14 @@ where
         &self,
         id: &str,
         update_doc: mongodb::bson::Document,
-    ) -> Result<bool, String> {
-        let oid = ObjectId::parse_str(id).map_err(|_| "Invalid ID format")?;
+    ) -> Result<bool, mongodb::error::Error> {
+        let oid = ObjectId::parse_str(id)
+            .map_err(|_| mongodb::error::Error::custom("Invalid Id Format"))?;
         // Removed 'None'
         let result = self
             .collection
             .update_one(doc! { "_id": oid }, update_doc)
-            .await
-            .map_err(|e| e.to_string())?;
+            .await?;
 
         Ok(result.matched_count > 0)
     }
