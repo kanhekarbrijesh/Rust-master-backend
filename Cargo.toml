@@ -16,13 +16,13 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # mongodb and bson are required for MongoDB interactions
 mongodb = "3.7.0"
 # bson is required for working with BSON documents, which MongoDB uses for data storage and retrieval
-bson = "3.1.0"
+bson = { version = "3.1.0", features = ["chrono-0_4"] }
 # serde is required for serializing and deserializing data, especially when working with JSON or BSON formats
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # futures is required for working with asynchronous programming and handling futures in Rust
 futures = "0.3"
 # schemars is required for generating JSON Schema from Rust types, which can be useful for API documentation and validation
-schemars = "1.2.1"
+schemars = { version = "1.2.1", features = ["derive"] }
 # garde is required for data validation, ensuring that the data structures used in the application meet certain criteria and constraints
 garde = { version = "0.23.0", features = ["derive", "regex", "email"] }

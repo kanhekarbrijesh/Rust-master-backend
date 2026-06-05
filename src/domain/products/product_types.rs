@@ -1,3 +1,4 @@
+use mongodb::bson::oid::ObjectId;
 // src/domain/products/product_types.rs
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -9,8 +10,12 @@ pub struct ProductItem {
     // 1. SYSTEM KEYS & AGNOSTIC IDENTIFIERS
     // ==========================================
     #[garde(skip)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    #[schemars(skip)]
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    /// Use a string representation for ObjectId to avoid cross-crate serde/schemars
+    /// trait-bound issues when multiple `bson` versions are present.
+    // pub _id: Option<ObjectId>,
+    pub id: Option<ObjectId>,
 
     /// STRONGLY TYPED REFERENCE (SKU):
     /// 🟢 Replaced \d with [0-9] and alpha classes for direct compilation
