@@ -1875,6 +1875,7 @@ dependencies = [
 name = "rust-tut-day1"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum",
  "bson 3.1.0",
  "dotenvy",
