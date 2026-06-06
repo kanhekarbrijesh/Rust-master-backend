@@ -9,6 +9,7 @@ pub struct Configs {
     pub mongo_uri: String,
     pub port: u16,
     pub current_env: String,
+    pub postgresql_neon_pool_url: String,
 }
 
 pub fn get_configurations() -> Configs {

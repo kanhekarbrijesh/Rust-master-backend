@@ -15,5 +15,9 @@ pub fn settings() -> Configs {
             .parse()
             .unwrap_or(8080),
         current_env: "prod".into(),
+        postgresql_neon_pool_url: get_env_var(
+            app_keys::POSTGRES_NEON_POOL,
+            app_constants::POSTGRES_NEON_POOL_DEFAULT,
+        ),
     }
 }

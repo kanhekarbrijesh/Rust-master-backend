@@ -24,7 +24,7 @@ async fn main() {
     AppLogger::new(config.clone()).log_app_config();
 
     // setting up app state
-    let app_state = AppState::new(&config.mongo_uri.to_string()).await;
+    let app_state = AppState::new(config).await;
 
     //    setup routes
     let routes = Router::new().merge(index_route()).with_state(app_state);

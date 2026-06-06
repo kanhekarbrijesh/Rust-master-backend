@@ -26,3 +26,10 @@ futures = "0.3"
 schemars = { version = "1.2.1", features = ["derive"] }
 # garde is required for data validation, ensuring that the data structures used in the application meet certain criteria and constraints
 garde = { version = "0.23.0", features = ["derive", "regex", "email"] }
+#
+sqlx = { version = "0.9.0", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "macros",
+] }

@@ -29,7 +29,14 @@ impl DevLogger {
             &self.log_config.mongo_uri,
             SecretMaskStrategy::DatabaseUri,
         );
-        tracing::info!("Database Connection: {}", safe_mongo);
+        tracing::info!("Database Connection mongodb : {}", safe_mongo);
+
+        let safe_postgresql = SecureLogUtil::mask_value(
+            "MONGO_URI",
+            &self.log_config.postgresql_neon_pool_url,
+            SecretMaskStrategy::DatabaseUri,
+        );
+        tracing::info!("Database Connection postgresql : {}", safe_postgresql);
 
         info!("Port: {}", self.log_config.port);
         info!(
