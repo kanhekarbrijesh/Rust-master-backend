@@ -16,8 +16,8 @@ pub fn settings() -> Configs {
             .unwrap_or(8080),
         current_env: "dev".into(),
         postgresql_neon_pool_url: get_env_var(
-            app_keys::POSTGRES_NEON_POOL,
-            app_constants::POSTGRES_NEON_POOL_DEFAULT,
+            app_keys::DATABASE_URL ,
+            app_constants::DATABASE_URL_DEFAULT,
         ),
     }
 }

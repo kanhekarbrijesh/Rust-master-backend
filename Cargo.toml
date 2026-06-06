@@ -32,4 +32,8 @@ sqlx = { version = "0.9.0", features = [
     "tls-rustls",
     "postgres",
     "macros",
+    'uuid',
 ] }
+#
+thiserror = "2.0.18"
+uuid = { version = "1.23.2", features = ["v4", "serde"] }
