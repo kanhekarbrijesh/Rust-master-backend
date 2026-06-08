@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE user_roles \n            SET role_name = $1, weight = $2 \n            WHERE id = $3 \n            RETURNING id, role_name, weight\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "user_roles",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "role_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "user_roles",
+            "name": "role_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "weight",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "user_roles",
+            "name": "weight"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5b96fa733fad1b12e8d2ad3da952439e0d563e91fe7f32e69b46837be2f6bcdd"
+}

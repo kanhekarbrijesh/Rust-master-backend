@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 # axum is required for building web applications and APIs in Rust, providing a powerful and ergonomic framework for handling HTTP requests and responses
-axum = "0.8"
+axum = { version = "0.8", features = [
+    "macros",
+] } # 👈 Make sure features = ["macros"] is there!
 # tokio is required for asynchronous programming, which is essential for building web servers and handling concurrent tasks efficiently
 tokio = { version = "1", features = ["full"] }
 # dotenvy is required for loading environment variables from a .env file, which is useful for configuration management

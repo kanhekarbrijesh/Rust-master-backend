@@ -4,7 +4,10 @@ use sqlx::PgPool;
 use crate::{
     configuration::config::Configs,
     infrastructure::{
-        _mongodb::mongodb::mongodb_connection, _postgresql::postgresql::connect_database_url,
+        _mongodb::mongodb::mongodb_connection,
+        _postgresql::{
+            postgresql::connect_database_url, repositories::user_roles_psql_repo::UserRolesPsqlRepo,
+        },
     },
 };
 
@@ -16,6 +19,7 @@ pub struct AppState {
         crate::infrastructure::_mongodb::mongodb_collections::MongodbCollections,
     // postgresql pgpool
     pub psql_pool: PgPool,
+    pub user_role_repo: UserRolesPsqlRepo,
 }
 
 impl AppState {
@@ -37,12 +41,15 @@ impl AppState {
         let psql_pool = connect_database_url(postgresql_url)
             .await
             .expect("Failed to connect to postgresql");
+
+        let user_role_repo = UserRolesPsqlRepo::new();
         // --------------------------------------------------------------- start : postgresql setup --------
 
         Self {
             db,
             mongodb_collections,
             psql_pool,
+            user_role_repo,
         }
     }
 }

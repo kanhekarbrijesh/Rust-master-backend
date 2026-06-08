@@ -1,10 +1,21 @@
+use axum::Router;
+
 use crate::{
-    infrastructure::app_state::AppState, routes::private::v1::products::product_router::product_router,
+    infrastructure::app_state::AppState,
+    routes::private::v1::{
+        product_categories::product_categories_router::product_category_router,
+        products::product_router::product_router, user_roles::user_role_router::user_role_routes,
+    },
 };
 
+pub mod product_categories;
 pub mod products;
+pub mod user_roles;
 
 // 🟢 Specify that this Router carries AppState context
-pub fn v1_routes() -> axum::Router<AppState> {
-    axum::Router::new().nest("/products", product_router())
+pub fn v1_routes() -> Router<AppState> {
+    Router::new()
+        .nest("/products", product_router())
+        .nest("/product-categories", product_category_router())
+        .nest("/user-roles", user_role_routes())
 }

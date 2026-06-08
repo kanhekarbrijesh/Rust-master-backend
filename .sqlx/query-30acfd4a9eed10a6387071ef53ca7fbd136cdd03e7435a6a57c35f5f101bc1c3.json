@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, role_name, weight \n            FROM user_roles \n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "user_roles",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "role_name",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "user_roles",
+            "name": "role_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "weight",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "user_roles",
+            "name": "weight"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "30acfd4a9eed10a6387071ef53ca7fbd136cdd03e7435a6a57c35f5f101bc1c3"
+}
