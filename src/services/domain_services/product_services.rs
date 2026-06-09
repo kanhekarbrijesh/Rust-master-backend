@@ -1,4 +1,5 @@
 use crate::{
+    _utils::validate_json::ValidatedJson,
     domain::products::{product_dto::ProductDto, product_types::ProductItem},
     infrastructure::app_state::AppState,
 };
@@ -18,18 +19,9 @@ use tracing::{error, info};
 // ==========================================
 pub fn add_product_handler(
     State(state): State<AppState>,
-    Json(payload): Json<ProductDto>,
+    ValidatedJson(payload): ValidatedJson<ProductDto>,
 ) -> BoxFuture<'static, Response> {
     Box::pin(async move {
-        // 🛑 EXACT FIX: Parentheses are completely empty here now!
-        if let Err(report) = payload.validate() {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "error": "Validation failed", "details": report.to_string() })),
-            )
-                .into_response();
-        }
-
         // ✅ CORRECT: Convert DTO to Entity before sending to the database
         let product_item: ProductItem = payload.into();
 
@@ -129,18 +121,9 @@ pub fn get_product_by_id_handler(
 pub fn update_product_handler(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    Json(payload): Json<ProductDto>,
+    ValidatedJson(payload): ValidatedJson<ProductDto>,
 ) -> BoxFuture<'static, Response> {
     Box::pin(async move {
-        // 🛑 EXACT FIX: Parentheses are completely empty here now!
-        if let Err(report) = payload.validate() {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "error": "Validation failed", "details": report.to_string() })),
-            )
-                .into_response();
-        }
-
         let obj_id = match ObjectId::parse_str(&id) {
             Ok(oid) => oid,
             Err(_) => return (StatusCode::BAD_REQUEST, "Invalid ID string format").into_response(),
