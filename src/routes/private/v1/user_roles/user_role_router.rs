@@ -1,8 +1,10 @@
 // src/routes/private/v1/user_roles/user_role_router.rs
 
-use crate::AppState;
-use crate::routes::private::v1::user_roles::user_role_controller::{
-    create_role_handler, get_role_handler, update_role_handler,
+use crate::{
+    infrastructure::app_state::AppState,
+    routes::private::v1::user_roles::user_role_controller::{
+        create_role_handler, get_role_handler, update_role_handler,
+    },
 };
 use axum::{
     Router,

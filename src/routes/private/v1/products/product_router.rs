@@ -1,37 +1,22 @@
-// src/routes/v1//product_router.rs
+// src/routes/v1/product_router.rs
 use crate::{
     infrastructure::app_state::AppState,
     routes::private::v1::products::product_controller::ProductController,
 };
-use axum::{
-    Router,
-    routing::{delete, get, post, put},
-};
+use axum::{Router, routing::get};
 
 pub fn product_router() -> Router<AppState> {
-    let controller = ProductController::new();
-
     Router::new()
-        // CREATE
+        // 1. Root Collection Path
         .route(
             "/",
-            post(move |state, payload| (controller.create)(state, payload)),
+            get(ProductController::read_all).post(ProductController::create),
         )
-        // READ ALL
-        .route("/", get(move |state| (controller.read_all)(state)))
-        // READ BY ID
+        // 2. Resource Instance Path
         .route(
             "/{id}",
-            get(move |state, path| (controller.read_by_id)(state, path)),
-        )
-        // UPDATE BY ID
-        .route(
-            "/{id}",
-            put(move |state, path, payload| (controller.update)(state, path, payload)),
-        )
-        // DELETE BY ID
-        .route(
-            "/{id}",
-            delete(move |state, path| (controller.delete)(state, path)),
+            get(ProductController::read_by_id)
+                .put(ProductController::update)
+                .delete(ProductController::delete),
         )
 }

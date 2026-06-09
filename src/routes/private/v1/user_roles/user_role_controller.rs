@@ -1,9 +1,11 @@
 // src/routes/private/v1/user_roles/user_role_controller.rs
 
-use crate::AppState;
-use crate::domain::user_roles::{
-    user_role_dto::{IUserRoleCreateDto, IUserRoleUpdateDto},
-    user_role_type::IUserRole,
+use crate::{
+    domain::user_roles::{
+        user_role_dto::{IUserRoleCreateDto, IUserRoleUpdateDto},
+        user_role_type::IUserRole,
+    },
+    infrastructure::app_state::AppState,
 };
 use axum::{
     Json,
