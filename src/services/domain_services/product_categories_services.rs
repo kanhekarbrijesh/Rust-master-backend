@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, State, path},
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };

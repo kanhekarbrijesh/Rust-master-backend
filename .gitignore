@@ -49,3 +49,8 @@ log/
 
 # ==========================================
 issues/
+
+# ==========================================
+# nodejs migrate-mongo
+migrate-mongo/node_modules/
+migrate-mongo/.env

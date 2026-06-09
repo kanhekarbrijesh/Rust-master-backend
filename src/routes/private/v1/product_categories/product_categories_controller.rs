@@ -1,7 +1,6 @@
 use crate::{
-    domain::product_categories::product_categories_repo::{self, ProductCategoriesModel},
-    infrastructure::app_state::AppState,
-    services::domain_services::product_categories_services,
+    domain::product_categories::product_categories_repo::ProductCategoriesModel,
+    infrastructure::app_state::AppState, services::domain_services::product_categories_services,
 };
 use axum::{
     Json,
