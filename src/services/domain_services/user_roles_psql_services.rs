@@ -4,7 +4,7 @@ use crate::{
         user_role_dto::{IUserRoleCreateDto, IUserRoleUpdateDto},
         user_role_type::IUserRole,
     },
-    infrastructure::_postgresql::psql_app_error::PsqlAppError,
+    infrastructure::db::postgresql::psql_app_error::PsqlAppError,
 };
 use sqlx::PgPool;
 

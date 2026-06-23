@@ -4,7 +4,8 @@ use sqlx::PgPool;
 use crate::{
     configuration::config::Configs,
     infrastructure::{
-        _mongodb::mongodb::mongodb_connection, _postgresql::psql_connction::psql_connection,
+        db::mongodb::mongodb_connection::mongodb_connection,
+        db::postgresql::psql_connction::psql_connection,
     },
     services::domain_services::user_roles_psql_services::UserRolesPsqlService,
 };
@@ -14,7 +15,7 @@ use crate::{
 pub struct AppState {
     pub db: Database, // The live database instance
     pub mongodb_collections:
-        crate::infrastructure::_mongodb::mongodb_collections::MongodbCollections,
+        crate::infrastructure::db::mongodb::mongodb_collections::MongodbCollections,
     // postgresql pgpool
     pub psql_pool: PgPool,
     pub user_role_repo: UserRolesPsqlService,
@@ -27,7 +28,7 @@ impl AppState {
         let mongodb_uri = &config.mongo_uri.clone();
         let db = mongodb_connection(mongodb_uri).await;
         let mongodb_collections =
-            crate::infrastructure::_mongodb::mongodb_collections::MongodbCollections::new(
+            crate::infrastructure::db::mongodb::mongodb_collections::MongodbCollections::new(
                 db.clone(),
             );
         // --------------------------------------------------------------- end : mongodb setup --------

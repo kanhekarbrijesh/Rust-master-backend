@@ -1,3 +1,7 @@
+# Reference 
+https://doc.rust-lang.org/rust-by-example/index.html
+
+
 # 🦀 Complete Scalable Axum Backend Blueprint
 
 A robust, asynchronous, multi-threaded production backend blueprint built with **Axum**, **Tokio**, **Tracing**, and **Serde**. This document serves as a complete reference and guide tracking the building blocks of an enterprise-ready Rust web API.

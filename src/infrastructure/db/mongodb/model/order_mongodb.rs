@@ -1,6 +1,6 @@
 use crate::{
     domain::orders::order_types::OrderItem,
-    infrastructure::_mongodb::repository::mongodb_repo_v1::MongodbRepoV1,
+    infrastructure::db::mongodb::repository::mongodb_repo_v1::MongodbRepoV1,
 };
 use mongodb::Database;
 

@@ -1,7 +1,7 @@
 // src/infrastructure/_mongodb/repository/product_mongodb.rs
 use crate::{
     domain::products::product_types::ProductItem,
-    infrastructure::_mongodb::repository::mongodb_repo_v1::MongodbRepoV1,
+    infrastructure::db::mongodb::repository::mongodb_repo_v1::MongodbRepoV1,
 };
 use mongodb::Database;
 
