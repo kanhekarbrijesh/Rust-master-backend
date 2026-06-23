@@ -19,5 +19,10 @@ pub fn settings() -> Configs {
             app_keys::DATABASE_URL,
             app_constants::DATABASE_URL_DEFAULT,
         ),
+
+        // ─── Storage defaults ────────────────────────────────────────────
+        storage_provider: "local".into(),
+        storage_local_path: "./uploads".into(),
+        storage_local_serve_prefix: "/uploads".into(),
     }
 }

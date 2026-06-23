@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::domain::gallery::gallery_types::GalleryItem;
 
 // ─── CREATE DTO ──────────────────────────────────────────────────────────────
+/// Used for creating a gallery item.
+/// `url` is populated by the controller after file upload.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, garde::Validate)]
 pub struct GalleryCreateDto {
     #[garde(length(min = 1, max = 2048))]

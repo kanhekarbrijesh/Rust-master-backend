@@ -19,5 +19,9 @@ pub fn settings() -> Configs {
             app_keys::DATABASE_URL ,
             app_constants::DATABASE_URL_DEFAULT,
         ),
+
+        storage_provider: get_env_var("STORAGE_PROVIDER", "local"),
+        storage_local_path: get_env_var("STORAGE_LOCAL_PATH", "./uploads"),
+        storage_local_serve_prefix: get_env_var("STORAGE_LOCAL_SERVE_PREFIX", "/uploads"),
     }
 }

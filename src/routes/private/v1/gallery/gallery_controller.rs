@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Multipart, Path, State},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -8,8 +8,8 @@ use axum::{
 use crate::{
     _utils::{app_error::AppError, validate_json::ValidatedJson},
     domain::gallery::gallery_dto::{GalleryCreateDto, GalleryDto, GalleryUpdateDto},
-    infrastructure::app_state::AppState,
-    services::domain_services::gallerly_services,
+    infrastructure::{app_state::AppState, storage::storage_util},
+    services::domain_services::gallery_services,
 };
 use mongodb::bson::oid::ObjectId;
 
@@ -17,21 +17,47 @@ pub struct GalleryController;
 
 impl GalleryController {
     // ==========================================
-    // 1. CREATE (Post)
+    // 1. CREATE (Post) — Multipart file upload
     // ==========================================
     pub async fn create(
         State(state): State<AppState>,
-        ValidatedJson(payload): ValidatedJson<GalleryCreateDto>,
+        multipart: Multipart,
     ) -> Result<impl IntoResponse, AppError> {
-        let id = gallerly_services::create_gallery(&state, payload).await?;
-        Ok((StatusCode::CREATED, Json(serde_json::json!({"id": id}))))
+        let upload =
+            storage_util::handle_multipart_upload(&*state.storage, "gallery", multipart).await?;
+        let status = upload
+            .text_fields
+            .get("status")
+            .ok_or_else(|| AppError::BadRequest("Missing field: status".into()))?
+            .clone();
+
+        let dto = GalleryCreateDto {
+            url: upload.store_result.url.clone(),
+            status,
+        };
+
+        // ── Persist to DB · rollback file on failure ──────────────────────
+        match gallery_services::create_gallery(&state, dto).await {
+            Ok(id) => Ok((StatusCode::CREATED, Json(serde_json::json!({"id": id})))),
+
+            Err(db_err) => {
+                // Orphan-protection: file was stored but DB insert failed.
+                // Fire-and-forget cleanup — best-effort, non-blocking.
+                let storage = state.storage.clone();
+                let key = upload.store_result.key.clone();
+                tokio::spawn(async move {
+                    let _ = storage.delete_file(&key).await;
+                });
+                Err(db_err)
+            }
+        }
     }
 
     // ==========================================
     // 2. READ ALL (Get)
     // ==========================================
     pub async fn read_all(State(state): State<AppState>) -> Result<impl IntoResponse, AppError> {
-        let items = gallerly_services::get_all_gallerys(&state).await?;
+        let items = gallery_services::get_all_galleries(&state).await?;
         let dtos: Vec<GalleryDto> = items.into_iter().map(Into::into).collect();
         Ok((StatusCode::OK, Json(dtos)))
     }
@@ -46,7 +72,7 @@ impl GalleryController {
         let obj_id = ObjectId::parse_str(&id)
             .map_err(|_| AppError::BadRequest("Invalid ID string format".to_string()))?;
 
-        let item = gallerly_services::get_gallery_by_id(&state, &obj_id.to_hex()).await?;
+        let item = gallery_services::get_gallery_by_id(&state, obj_id).await?;
         let dto: GalleryDto = item.into();
         Ok((StatusCode::OK, Json(dto)))
     }
@@ -62,7 +88,7 @@ impl GalleryController {
         let obj_id = ObjectId::parse_str(&id)
             .map_err(|_| AppError::BadRequest("Invalid ID string format".to_string()))?;
 
-        gallerly_services::update_gallery(&state, &obj_id.to_hex(), payload).await?;
+        gallery_services::update_gallery(&state, obj_id, payload).await?;
         Ok((
             StatusCode::OK,
             Json(serde_json::json!({ "message": "Gallery item updated successfully" })),
@@ -79,7 +105,7 @@ impl GalleryController {
         let obj_id = ObjectId::parse_str(&id)
             .map_err(|_| AppError::BadRequest("Invalid ID string format".to_string()))?;
 
-        gallerly_services::delete_gallery(&state, &obj_id.to_hex()).await?;
+        gallery_services::delete_gallery(&state, obj_id).await?;
         Ok((
             StatusCode::OK,
             Json(serde_json::json!({ "message": "Gallery item deleted successfully" })),

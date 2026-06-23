@@ -10,6 +10,14 @@ pub struct Configs {
     pub port: u16,
     pub current_env: String,
     pub postgresql_neon_pool_url: String,
+
+    // ─── Storage ─────────────────────────────────────────────────────────
+    /// Which storage backend to use: "local", "aws", "cloudflare"
+    pub storage_provider: String,
+    /// Base path on disk (used only when storage_provider = "local")
+    pub storage_local_path: String,
+    /// URL prefix for served files (used only when storage_provider = "local")
+    pub storage_local_serve_prefix: String,
 }
 
 pub fn get_configurations() -> Configs {

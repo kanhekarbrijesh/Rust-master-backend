@@ -46,15 +46,22 @@ where
         Ok(items)
     }
 
-    // READ
+    // READ (by string — backward compat)
     pub async fn find_by_id(&self, id: &str) -> Result<Option<T>, mongodb::error::Error> {
         let oid = ObjectId::parse_str(id)
             .map_err(|_| mongodb::error::Error::custom("Invalid ID format"))?;
-        // Removed 'None'
+        self.find_by_object_id(oid).await
+    }
+
+    /// Read a document by native `ObjectId` — no string parsing overhead.
+    pub async fn find_by_object_id(
+        &self,
+        oid: ObjectId,
+    ) -> Result<Option<T>, mongodb::error::Error> {
         self.collection.find_one(doc! { "_id": oid }).await
     }
 
-    // UPDATE
+    // UPDATE (by string — backward compat)
     pub async fn update(
         &self,
         id: &str,
@@ -62,7 +69,15 @@ where
     ) -> Result<bool, mongodb::error::Error> {
         let oid = ObjectId::parse_str(id)
             .map_err(|_| mongodb::error::Error::custom("Invalid Id Format"))?;
-        // Removed 'None'
+        self.update_by_object_id(oid, update_doc).await
+    }
+
+    /// Update a document by native `ObjectId` — no string parsing overhead.
+    pub async fn update_by_object_id(
+        &self,
+        oid: ObjectId,
+        update_doc: mongodb::bson::Document,
+    ) -> Result<bool, mongodb::error::Error> {
         let result = self
             .collection
             .update_one(doc! { "_id": oid }, update_doc)
@@ -71,10 +86,14 @@ where
         Ok(result.matched_count > 0)
     }
 
-    // DELETE
+    // DELETE (by string — backward compat)
     pub async fn delete(&self, id: &str) -> Result<bool, String> {
         let oid = ObjectId::parse_str(id).map_err(|_| "Invalid ID format")?;
-        // Removed 'None'
+        self.delete_by_object_id(oid).await
+    }
+
+    /// Delete a document by native `ObjectId` — no string parsing overhead.
+    pub async fn delete_by_object_id(&self, oid: ObjectId) -> Result<bool, String> {
         let result = self
             .collection
             .delete_one(doc! { "_id": oid })

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use mongodb::Database;
 use sqlx::PgPool;
 
@@ -6,6 +8,7 @@ use crate::{
     infrastructure::{
         db::mongodb::mongodb_connection::mongodb_connection,
         db::postgresql::psql_connction::psql_connection,
+        storage::storage_types::StorageProvider,
     },
     services::domain_services::user_roles_psql_services::UserRolesPsqlService,
 };
@@ -19,6 +22,9 @@ pub struct AppState {
     // postgresql pgpool
     pub psql_pool: PgPool,
     pub user_role_repo: UserRolesPsqlService,
+    // ─── Storage ─────────────────────────────────────────────────────────
+    /// The active storage provider (Local, S3, R2, etc.)
+    pub storage: Arc<dyn StorageProvider>,
 }
 
 impl AppState {
@@ -45,11 +51,35 @@ impl AppState {
         // let user_role_repo2 = UserRolesPsqlService;
         // --------------------------------------------------------------- start : postgresql setup --------
 
+        // --------------------------------------------------------------- start : storage setup --------
+        let storage: Arc<dyn StorageProvider> = match config.storage_provider.as_str() {
+            "aws" => {
+                // TODO: replace with AwsS3Storage once aws-sdk-s3 is wired up
+                Arc::new(crate::infrastructure::storage::localstorage::LocalStorage::new(
+                    &config.storage_local_path,
+                    &config.storage_local_serve_prefix,
+                ))
+            }
+            "cloudflare" => {
+                // TODO: replace with CloudflareR2Storage once aws-sdk-s3 is wired up
+                Arc::new(crate::infrastructure::storage::localstorage::LocalStorage::new(
+                    &config.storage_local_path,
+                    &config.storage_local_serve_prefix,
+                ))
+            }
+            _ => Arc::new(crate::infrastructure::storage::localstorage::LocalStorage::new(
+                &config.storage_local_path,
+                &config.storage_local_serve_prefix,
+            )),
+        };
+        // --------------------------------------------------------------- end : storage setup --------
+
         Self {
             db,
             mongodb_collections,
             psql_pool,
             user_role_repo,
+            storage,
         }
     }
 }
