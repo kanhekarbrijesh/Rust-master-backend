@@ -3,7 +3,7 @@ use crate::{
     _utils::app_error::AppError, domain::products::product_dto::ProductDto,
     domain::products::product_types::ProductItem, infrastructure::app_state::AppState,
 };
-use mongodb::bson::{doc, oid::ObjectId};
+use mongodb::bson::doc;
 
 pub async fn create_product(state: &AppState, payload: ProductDto) -> Result<String, AppError> {
     let object_id = state

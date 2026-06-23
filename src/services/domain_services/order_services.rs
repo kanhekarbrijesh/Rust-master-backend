@@ -2,7 +2,7 @@ use crate::{
     _utils::app_error::AppError, domain::orders::order_dto::OrderDto,
     domain::orders::order_types::OrderItem, infrastructure::app_state::AppState,
 };
-use mongodb::bson::{Bson, doc, oid::ObjectId, to_bson};
+use mongodb::bson::{Bson, doc, to_bson};
 
 pub async fn create_order(state: &AppState, payload: OrderDto) -> Result<String, AppError> {
     let object_id = state

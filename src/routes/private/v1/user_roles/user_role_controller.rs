@@ -6,6 +6,7 @@ use crate::{
         user_role_type::IUserRole,
     },
     infrastructure::app_state::AppState,
+    services::domain_services::user_roles_psql_services::UserRolesPsqlService,
 };
 use axum::{
     Json,
@@ -19,7 +20,8 @@ pub async fn create_role_handler(
     State(state): State<AppState>,
     Json(payload): Json<IUserRoleCreateDto>,
 ) -> Result<Json<IUserRole>, StatusCode> {
-    let role = (state.user_role_repo.create)(payload, state.psql_pool.clone())
+    // 👈 Pass a reference to the pool. No more .clone()!
+    let role = UserRolesPsqlService::create(&state.psql_pool, payload)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -32,7 +34,7 @@ pub async fn get_role_handler(
     State(state): State<AppState>,
     Path(id): Path<i32>,
 ) -> Result<Json<IUserRole>, StatusCode> {
-    let role = (state.user_role_repo.find_one)(id, state.psql_pool.clone())
+    let role = UserRolesPsqlService::find_by_id(&state.psql_pool, id)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
@@ -47,7 +49,7 @@ pub async fn update_role_handler(
     Path(id): Path<i32>,
     Json(payload): Json<IUserRoleUpdateDto>,
 ) -> Result<Json<IUserRole>, StatusCode> {
-    let updated_role = (state.user_role_repo.update)(id, payload, state.psql_pool.clone())
+    let updated_role = UserRolesPsqlService::update(&state.psql_pool, id, payload)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;

@@ -1,7 +1,7 @@
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 
 // CHANGED: The return type is now a Result, which matches Ok(pool) and allows the ? operator.
-pub async fn connect_database_url(postgresql_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
+pub async fn psql_connection(postgresql_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(postgresql_url)
