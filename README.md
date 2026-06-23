@@ -273,7 +273,32 @@ async fn main() {
 
 ---
 
-## 💎 Architectural Summary Checklist
+## � API Endpoints
+
+### `api/private/v1/users`
+
+| Method | Path               | Description                          | Content-Type                    |
+|--------|---------------------|--------------------------------------|---------------------------------|
+| POST   | `/api/private/v1/users` | Create a user with profile image     | `multipart/form-data`           |
+| GET    | `/api/private/v1/users` | List all users                       | —                               |
+| GET    | `/api/private/v1/users/{id}` | Get user by ID               | —                               |
+| PUT    | `/api/private/v1/users/{id}` | Update user (file optional) | `multipart/form-data`           |
+| DELETE | `/api/private/v1/users/{id}` | Delete user                  | —                               |
+
+**Multipart Fields (POST/PUT):**
+- `name` (text, required) — User display name
+- `role_id` (text/integer, required) — Foreign key to `user_roles.id`
+- `profile_image` (file, required for POST, optional for PUT) — Accepted: jpg, jpeg, png, webp, gif; Max: 10 MB
+
+**Edge Preprocessing:** All uploaded profile images are automatically resized to max 512px and converted to WebP format via the `image` + `webp` crates. MIME type validation occurs before any storage I/O.
+
+**Transaction Safety:** The `PUT` (update) endpoint wraps its read-then-write operations in an atomic PostgreSQL transaction block, ensuring consistency if the user record is concurrently modified.
+
+**Database:** `users` table in PostgreSQL with FK → `user_roles(id)`.
+
+---
+
+## �💎 Architectural Summary Checklist
 
 1. **Explicit Data Ownership (`.clone()` vs `&`):** Primitive numbers use automatic stack copy operations. Complex structures default to strict move semantic locks. Pass memory references (`&`) whenever performing evaluation functions to completely prevent unnecessary memory reallocation.
 2. **Compile-Time Type Safety:** Match branches will refuse dynamic computations (like vector reads or operations with a `.`). Instead, leverage clear `const` attributes packaged nicely inside dedicated namespace modules (`pub mod`).

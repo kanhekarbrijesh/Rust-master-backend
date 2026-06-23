@@ -1,5 +1,6 @@
 pub mod aws;
 pub mod cloudflare;
+pub mod image_preprocessing;
 pub mod localstorage;
 pub mod storage_types;
 pub mod storage_util;

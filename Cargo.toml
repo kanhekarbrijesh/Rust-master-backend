@@ -41,3 +41,10 @@ sqlx = { version = "0.9.0", features = [
 thiserror = "2.0.18"
 uuid = { version = "1.23.2", features = ["v4", "serde"] }
 async-trait = "0.1.89"
+# image processing for profile_image preprocessing (resize + WebP conversion)
+image = { version = "0.25", default-features = false, features = [
+    "jpeg",
+    "png",
+    "webp",
+] }
+webp = "0.3"
