@@ -1,74 +1,66 @@
 // ─── IMAGE PREPROCESSING PIPELINE ─────────────────────────────────────────────
-// Edge preprocessing for uploaded images: resize + convert to WebP.
-// This runs before the file is stored, reducing storage costs and bandwidth.
+//
+// **BACKWARD-COMPATIBILITY WRAPPER**
+//
+// This file now delegates to the modular `file_preprocess` architecture.
+// Direct calls to `validate_mime_type()` and `preprocess_profile_image()`
+// still work — they forward to a `LocalFilePreprocessor` under the hood.
+//
+// **New code should use the `FilePreprocessor` trait directly:**
+// ```rust
+// use crate::infrastructure::storage::file_preprocess::{
+//     FilePreprocessor, file_preprocess_local::LocalFilePreprocessor,
+// };
+// let preprocessor = LocalFilePreprocessor::new();
+// let result = preprocessor.preprocess(&buffer, "image/jpeg", "photo.jpg")?;
+// ```
+// ============================================================================
 
-use image::{DynamicImage, ImageReader, codecs::webp::WebPEncoder, imageops::FilterType};
-use std::io::Cursor;
+use std::sync::LazyLock;
 
 use crate::_utils::app_error::AppError;
 
-/// Maximum dimension (width or height) for profile images.
-/// Images larger than this will be resized proportionally.
-const MAX_DIMENSION: u32 = 512;
+use super::file_preprocess::{
+    FilePreprocessor, PreprocessingConfig, file_preprocess_local::LocalFilePreprocessor,
+};
+
+// ─── RE-EXPORT constants for backward compatibility ─────────────────────────
 
 /// Allowed MIME types for image uploads.
 pub const ALLOWED_MIME_TYPES: &[&str] = &["image/jpeg", "image/png", "image/webp", "image/gif"];
 
+/// Maximum dimension (width or height) for profile images.
+/// Images larger than this will be resized proportionally.
+pub const MAX_DIMENSION: u32 = 512;
+
+static LEGACY_PREPROCESSOR: LazyLock<LocalFilePreprocessor> = LazyLock::new(|| {
+    LocalFilePreprocessor::with_config(PreprocessingConfig {
+        max_dimension: MAX_DIMENSION,
+        convert_to_webp: true,
+        allowed_mime_types: ALLOWED_MIME_TYPES.iter().map(|s| s.to_string()).collect(),
+    })
+});
+
 /// Validate that the MIME type is in the allowlist.
+///
+/// Delegates to `file_preprocess::validate_mime_type`.
 pub fn validate_mime_type(content_type: &str) -> Result<(), AppError> {
-    if ALLOWED_MIME_TYPES.contains(&content_type) {
-        Ok(())
-    } else {
-        Err(AppError::BadRequest(format!(
-            "Unsupported file type '{}'. Allowed: {}",
-            content_type,
-            ALLOWED_MIME_TYPES.join(", ")
-        )))
-    }
+    super::file_preprocess::validate_mime_type(
+        content_type,
+        &LEGACY_PREPROCESSOR.config.allowed_mime_types,
+    )
 }
 
-/// Process an uploaded image buffer:
-/// 1. Decode the image
-/// 2. Resize proportionally if exceeding MAX_DIMENSION
-/// 3. Convert to WebP format
+/// Process an uploaded image buffer (resize + WebP conversion).
 ///
-/// Returns (processed_buffer, "image/webp" as new content type).
+/// Delegates to `LocalFilePreprocessor::preprocess`.
+/// Returns `(processed_buffer, "image/webp")`.
 pub fn preprocess_profile_image(
     buffer: &[u8],
-    _original_content_type: &str,
+    content_type: &str,
 ) -> Result<(Vec<u8>, String), AppError> {
-    // Decode the image
-    let img = ImageReader::new(Cursor::new(buffer))
-        .with_guessed_format()
-        .map_err(|e| AppError::BadRequest(format!("Failed to read image: {e}")))?
-        .decode()
-        .map_err(|e| AppError::BadRequest(format!("Failed to decode image: {e}")))?;
-
-    // Resize if needed (maintain aspect ratio)
-    let processed = if img.width() > MAX_DIMENSION || img.height() > MAX_DIMENSION {
-        let ratio = (MAX_DIMENSION as f64 / img.width().max(img.height()) as f64).min(1.0);
-        let new_w = (img.width() as f64 * ratio).round() as u32;
-        let new_h = (img.height() as f64 * ratio).round() as u32;
-        DynamicImage::ImageRgba8(image::imageops::resize(
-            &img,
-            new_w,
-            new_h,
-            FilterType::Lanczos3,
-        ))
-    } else {
-        img
-    };
-
-    // Encode as WebP
-    let mut webp_buf = Vec::new();
-    {
-        let encoder = WebPEncoder::new_lossless(&mut webp_buf);
-        processed
-            .write_with_encoder(encoder)
-            .map_err(|e| AppError::Internal(format!("WebP encoding failed: {e}")))?;
-    }
-
-    Ok((webp_buf, "image/webp".to_string()))
+    let result = LEGACY_PREPROCESSOR.preprocess(buffer, content_type, "image")?;
+    Ok((result.buffer, result.content_type))
 }
 
 // ---------------------- Unit tests ----------------------

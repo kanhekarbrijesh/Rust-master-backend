@@ -7,7 +7,12 @@ use crate::{
     configuration::config::Configs,
     infrastructure::{
         db::mongodb::mongodb_connection::mongodb_connection,
-        db::postgresql::psql_connction::psql_connection, storage::storage_types::StorageProvider,
+        db::postgresql::psql_connction::psql_connection,
+        storage::{
+            file_preprocess::FilePreprocessor,
+            file_preprocess::file_preprocess_local::LocalFilePreprocessor,
+            storage_types::StorageProvider,
+        },
     },
     services::domain_services::user_roles_psql_services::UserRolesPsqlService,
 };
@@ -29,6 +34,15 @@ pub struct AppState {
     /// reconstruct storage keys from URLs — keeping it **fully decoupled**
     /// from any single backend implementation.
     pub storage_serve_prefix: String,
+    // ─── File Preprocessor ───────────────────────────────────────────────
+    /// The active file preprocessor (Local, Cloudflare Worker, AWS Lambda).
+    /// Swapped at instantiation time (code-level, not env-driven).
+    ///
+    /// To swap, change the concrete type in `AppState::new()`:
+    ///   - `LocalFilePreprocessor`       → for local dev / native binary
+    ///   - `CfWorkerFilePreprocessor`   → for Cloudflare Worker deploy
+    ///   - `AwsLambdaFilePreprocessor`  → for AWS Lambda deploy
+    pub file_preprocessor: Arc<dyn FilePreprocessor>,
 }
 
 impl AppState {
@@ -121,6 +135,11 @@ impl AppState {
             };
         // --------------------------------------------------------------- end : storage setup --------
 
+        // ── File Preprocessor setup ──────────────────────────────────────
+        // 🔁 SWAP HERE: Change the concrete type to switch preprocessing.
+        //    Options: LocalFilePreprocessor | CfWorkerFilePreprocessor | AwsLambdaFilePreprocessor
+        let file_preprocessor: Arc<dyn FilePreprocessor> = Arc::new(LocalFilePreprocessor::new());
+
         Self {
             db,
             mongodb_collections,
@@ -128,6 +147,7 @@ impl AppState {
             user_role_repo,
             storage,
             storage_serve_prefix,
+            file_preprocessor,
         }
     }
 }

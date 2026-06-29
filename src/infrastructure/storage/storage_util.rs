@@ -41,6 +41,7 @@ use axum::extract::Multipart;
 use crate::{
     _utils::app_error::AppError,
     infrastructure::storage::{
+        file_preprocess::FilePreprocessor,
         image_preprocessing,
         storage_types::{StorageProvider, StoreFileInput, StoreFileResult},
     },
@@ -366,6 +367,101 @@ pub async fn handle_multipart_upload_optional_with_preprocessing(
                         buffer: processed_buf,
                         file_name: webp_file_name,
                         content_type: webp_content_type,
+                        directory: directory.to_string(),
+                    })
+                    .await?,
+            )
+        }
+        None => None,
+    };
+
+    Ok(OptionalUploadResult {
+        store_result,
+        text_fields,
+    })
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRAIT-BASED PREPROCESSING HELPERS (swappable at code level)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// These functions accept a `&dyn FilePreprocessor` instead of calling the
+// legacy `image_preprocessing` module directly.
+//
+// **Usage:**
+// ```rust
+// use crate::infrastructure::storage::{
+//     file_preprocess::file_preprocess_local::LocalFilePreprocessor,
+//     storage_util::handle_multipart_upload_with_preprocessor,
+// };
+//
+// let preprocessor = LocalFilePreprocessor::new();
+// let result = handle_multipart_upload_with_preprocessor(
+//     &*state.storage, &preprocessor, "gallery", multipart,
+// ).await?;
+// ```
+// ============================================================================
+
+/// ──────────────────────────────────────────────────────────────────────────────
+/// **File required · With trait-based FilePreprocessor**
+///
+/// Same as `handle_multipart_upload_with_preprocessing` but accepts a
+/// `&dyn FilePreprocessor` so the preprocessing logic can be swapped at
+/// compile time.
+/// ──────────────────────────────────────────────────────────────────────────────
+pub async fn handle_multipart_upload_with_preprocessor(
+    storage: &dyn StorageProvider,
+    preprocessor: &dyn FilePreprocessor,
+    directory: &str,
+    multipart: Multipart,
+) -> Result<UploadResult, AppError> {
+    let (raw_file, text_fields) = collect_multipart_fields(multipart, true).await?;
+    let (buffer, file_name, content_type) = raw_file.unwrap(); // safe: accept_file=true
+
+    // ── Preprocess via the injected preprocessor ─────────────────────────
+    let result = preprocessor.preprocess(&buffer, &content_type, &file_name)?;
+
+    // ── Store the preprocessed file ──────────────────────────────────────
+    let store_result = storage
+        .store_file(StoreFileInput {
+            buffer: result.buffer,
+            file_name: result.file_name,
+            content_type: result.content_type,
+            directory: directory.to_string(),
+        })
+        .await?;
+
+    Ok(UploadResult {
+        store_result,
+        text_fields,
+    })
+}
+
+/// ──────────────────────────────────────────────────────────────────────────────
+/// **File optional · With trait-based FilePreprocessor**
+///
+/// For update endpoints where the file is optional but when present it should
+/// be preprocessed via a swappable `FilePreprocessor`.
+/// ──────────────────────────────────────────────────────────────────────────────
+pub async fn handle_multipart_upload_optional_with_preprocessor(
+    storage: &dyn StorageProvider,
+    preprocessor: &dyn FilePreprocessor,
+    directory: &str,
+    multipart: Multipart,
+) -> Result<OptionalUploadResult, AppError> {
+    let (raw_file, text_fields) = collect_multipart_fields(multipart, false).await?;
+
+    let store_result = match raw_file {
+        Some((buffer, file_name, content_type)) => {
+            // ── Preprocess via the injected preprocessor ─────────────────
+            let result = preprocessor.preprocess(&buffer, &content_type, &file_name)?;
+
+            Some(
+                storage
+                    .store_file(StoreFileInput {
+                        buffer: result.buffer,
+                        file_name: result.file_name,
+                        content_type: result.content_type,
                         directory: directory.to_string(),
                     })
                     .await?,

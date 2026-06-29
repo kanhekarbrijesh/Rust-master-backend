@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# wrangler.toml — Cloudflare Worker Configuration (Rust / workers-rs)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name = "rust-tut-preprocess-worker"
+compatibility_date = "2026-06-29"
+
+# ─── R2 Bucket Binding ──────────────────────────────────────────────────────
+# Create the bucket first:
+#   npx wrangler r2 bucket create rust-tut-uploads
+# ============================================================================
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "rust-tut-uploads"
+
+# ─── Environment Variables ──────────────────────────────────────────────────
+# [vars]
+# PUBLIC_URL_BASE = "https://media.example.com"
+
+# ─── Routes ─────────────────────────────────────────────────────────────────
+# Uncomment and set your domain:
+# routes = [
+#   { pattern = "media.example.com", zone_id = "<your-zone-id>" }
+# ]
+
+# ─── WASM Build ─────────────────────────────────────────────────────────────
+# The worker crate compiles to wasm32-unknown-unknown automatically.
+# Build command:
+#   npx wrangler deploy
+# ============================================================================
+
+# ─── Compatibility Flags ────────────────────────────────────────────────────
+compatibility_flags = ["nodejs_compat"]

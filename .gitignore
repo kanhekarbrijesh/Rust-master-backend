@@ -51,6 +51,19 @@ log/
 issues/
 
 # ==========================================
+# 5. STANDALONE WORKER BUILD ARTIFACTS
+# ==========================================
+# Cloudflare Worker (Rust / workers-rs) — WASM build output
+cloudflare-worker/build/
+cloudflare-worker/target/
+cloudflare-worker/worker/
+
+# AWS Lambda standalone project — build artifacts
+aws-lambda/target/
+aws-lambda/bootstrap
+aws-lambda/lambda.zip
+
+# ==========================================
 # nodejs migrate-mongo
 migrate-mongo/node_modules/
 migrate-mongo/.env

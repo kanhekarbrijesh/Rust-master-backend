@@ -1,0 +1,68 @@
+[package]
+name = "aws-lambda-preprocess"
+version = "0.1.0"
+edition = "2024"
+description = "Standalone AWS Lambda function for image preprocessing (resize + WebP)"
+
+# ─── AWS Lambda Rust Runtime ─────────────────────────────────────────────────
+# This standalone Lambda function handles file preprocessing outside of the
+# main API server. It can be triggered via:
+#   1. API Gateway → Lambda proxy (HTTP endpoint)
+#   2. S3 event notifications (auto-process on upload)
+#   3. Direct invocation from the main backend
+#
+# Build & Deploy:
+#   cargo build --release --target x86_64-unknown-linux-musl
+#   cp target/x86_64-unknown-linux-musl/release/aws-lambda-preprocess ./bootstrap
+#   zip lambda.zip bootstrap
+#   # Upload lambda.zip to AWS Lambda
+#
+# The binary must be named `bootstrap` (or `rust_lambda_handler`) for Lambda.
+# ============================================================================
+
+[dependencies]
+# ─── AWS Lambda Runtime ──────────────────────────────────────────────────
+lambda_runtime = "0.13"
+aws_lambda_events = { version = "0.17", features = ["s3"] }
+tokio = { version = "1", features = ["full"] }
+
+# ─── AWS SDK for S3 (store processed files) ──────────────────────────────
+aws-sdk-s3 = { version = "1.75", default-features = false, features = [
+    "rt-tokio",
+    "rustls",
+] }
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+
+# ─── Image Processing ────────────────────────────────────────────────────
+# Full image crate with all features — works natively on Lambda (Linux x86_64)
+image = { version = "0.25", default-features = false, features = [
+    "jpeg",
+    "png",
+    "webp",
+] }
+
+# ─── Serialization ───────────────────────────────────────────────────────
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# ─── Base64 (for API Gateway body decoding) ────────────────────────────
+base64 = "0.22"
+
+# ─── HTTP Client (for fetching images from URLs) ─────────────────────────
+reqwest = { version = "0.12", default-features = false, features = [
+    "rustls-tls",
+] }
+
+# ─── Logging ─────────────────────────────────────────────────────────────
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+# Optimize for Lambda (cold start = binary size)
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+# Use mimalloc for better Lambda performance
+# [dependencies]
+# mimalloc = { version = "0.1", default-features = false }
