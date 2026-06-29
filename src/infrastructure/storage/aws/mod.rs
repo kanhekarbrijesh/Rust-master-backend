@@ -13,7 +13,8 @@ use tracing::{error, info};
 use crate::{
     _utils::app_error::AppError,
     infrastructure::storage::storage_types::{
-        StorageProvider, StoreFileInput, StoreFileResult, build_storage_key,
+        PresignedUploadConfig, PresignedUploadResult, StorageProvider, StoreFileInput,
+        StoreFileResult, build_storage_key,
     },
 };
 
@@ -139,5 +140,40 @@ impl StorageProvider for AwsS3Storage {
                 }
             }
         }
+    }
+
+    async fn presigned_upload_url(
+        &self,
+        config: PresignedUploadConfig,
+    ) -> Result<PresignedUploadResult, AppError> {
+        let key = build_storage_key(&config.directory, &config.file_name);
+        let expires = std::time::Duration::from_secs(config.expires_in_secs);
+
+        let expires_cfg = aws_sdk_s3::presigning::PresigningConfig::builder()
+            .expires_in(expires)
+            .build()
+            .map_err(|e| AppError::Internal(format!("Presigning config error: {e}")))?;
+
+        let presigned_req = self
+            .client
+            .put_object()
+            .bucket(&self.bucket)
+            .key(&key)
+            .content_type(&config.content_type)
+            .presigned(expires_cfg)
+            .await
+            .map_err(|e| {
+                error!(key = %key, bucket = %self.bucket, "S3 presigned URL failed: {e}");
+                AppError::Internal(format!("S3 presigned URL error: {e}"))
+            })?;
+
+        info!(key = %key, expires_secs = %config.expires_in_secs, "S3 presigned upload URL generated");
+
+        Ok(PresignedUploadResult {
+            url: presigned_req.uri().to_string(),
+            key,
+            method: "PUT".to_string(),
+            headers: Some(vec![("Content-Type".to_string(), config.content_type)]),
+        })
     }
 }

@@ -15,7 +15,8 @@ use tracing::{error, info};
 use crate::{
     _utils::app_error::AppError,
     infrastructure::storage::storage_types::{
-        StorageProvider, StoreFileInput, StoreFileResult, build_storage_key,
+        PresignedUploadConfig, PresignedUploadResult, StorageProvider, StoreFileInput,
+        StoreFileResult, build_storage_key,
     },
 };
 
@@ -169,5 +170,41 @@ impl StorageProvider for CloudflareR2Storage {
                 }
             }
         }
+    }
+
+    async fn presigned_upload_url(
+        &self,
+        config: PresignedUploadConfig,
+    ) -> Result<PresignedUploadResult, AppError> {
+        let raw_key = build_storage_key(&config.directory, &config.file_name);
+        let full_key = self.build_full_key(&raw_key);
+        let expires = std::time::Duration::from_secs(config.expires_in_secs);
+
+        let expires_cfg = aws_sdk_s3::presigning::PresigningConfig::builder()
+            .expires_in(expires)
+            .build()
+            .map_err(|e| AppError::Internal(format!("Presigning config error: {e}")))?;
+
+        let presigned_req = self
+            .client
+            .put_object()
+            .bucket(&self.bucket)
+            .key(&full_key)
+            .content_type(&config.content_type)
+            .presigned(expires_cfg)
+            .await
+            .map_err(|e| {
+                error!(key = %full_key, bucket = %self.bucket, "R2 presigned URL failed: {e}");
+                AppError::Internal(format!("R2 presigned URL error: {e}"))
+            })?;
+
+        info!(key = %raw_key, expires_secs = %config.expires_in_secs, "R2 presigned upload URL generated");
+
+        Ok(PresignedUploadResult {
+            url: presigned_req.uri().to_string(),
+            key: raw_key,
+            method: "PUT".to_string(),
+            headers: Some(vec![("Content-Type".to_string(), config.content_type)]),
+        })
     }
 }

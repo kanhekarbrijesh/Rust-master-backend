@@ -3,7 +3,10 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
 use crate::_utils::app_error::AppError;
-use crate::infrastructure::storage::storage_types::{StorageProvider, StoreFileInput, StoreFileResult, build_storage_key};
+use crate::infrastructure::storage::storage_types::{
+    PresignedUploadConfig, PresignedUploadResult, StorageProvider, StoreFileInput, StoreFileResult,
+    build_storage_key,
+};
 
 /// Local file-system storage provider.
 ///
@@ -83,5 +86,17 @@ impl StorageProvider for LocalStorage {
     async fn file_exists(&self, key: &str) -> Result<bool, AppError> {
         let full_path = format!("{}/{}", self.base_path, key);
         Ok(std::path::Path::new(&full_path).exists())
+    }
+
+    async fn presigned_upload_url(
+        &self,
+        _config: PresignedUploadConfig,
+    ) -> Result<PresignedUploadResult, AppError> {
+        Err(AppError::BadRequest(
+            "Presigned URLs are not supported by the local filesystem storage provider. \
+             Use a cloud storage provider (AWS S3 or Cloudflare R2) or fall back to \
+             direct upload via `store_file()`."
+                .into(),
+        ))
     }
 }
