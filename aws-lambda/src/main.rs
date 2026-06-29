@@ -105,7 +105,7 @@ struct ErrorResponse {
 
 // ─── Image Preprocessing Logic (reusable) ───────────────────────────────────
 
-/// Process an image buffer: validate → resize → WebP conversion.
+/// Process an image buffer: validate → resize → WebP conversion → optional encrypt.
 fn preprocess_image(buffer: &[u8], content_type: &str) -> Result<(Vec<u8>, String), String> {
     // ── Validate MIME ───────────────────────────────────────────────────
     if !ALLOWED_MIME_TYPES.contains(&content_type) {
@@ -146,8 +146,80 @@ fn preprocess_image(buffer: &[u8], content_type: &str) -> Result<(Vec<u8>, Strin
             .map_err(|e| format!("WebP encoding failed: {e}"))?;
     }
 
+    // ── Encrypt (if FILE_ENCRYPTION_KEY is set) ─────────────────────────
+    if let Ok(enc_key) = load_encryption_key() {
+        let encrypted = encrypt_file(&webp_buf, &enc_key)?;
+        return Ok((encrypted, "application/octet-stream".to_string()));
+    }
+
     Ok((webp_buf, "image/webp".to_string()))
 }
+
+// ─── Encryption Helpers ─────────────────────────────────────────────────────
+
+/// Load the 256-bit encryption key from FILE_ENCRYPTION_KEY env var.
+fn load_encryption_key() -> Result<[u8; 32], String> {
+    let key_hex = std::env::var("FILE_ENCRYPTION_KEY")
+        .map_err(|_| "FILE_ENCRYPTION_KEY not set".to_string())?;
+    let key_bytes = hex::decode(&key_hex)
+        .map_err(|e| format!("Invalid hex: {e}"))?;
+    if key_bytes.len() != 32 {
+        return Err(format!("Key must be 64 hex chars, got {}", key_hex.len()));
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&key_bytes);
+    Ok(key)
+}
+
+/// Encrypt plaintext using AES-256-GCM via `ring`.
+fn encrypt_file(plaintext: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
+    use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+    use ring::rand::{SecureRandom, SystemRandom};
+
+    let unbound_key =
+        UnboundKey::new(&AES_256_GCM, key).map_err(|e| format!("Key init: {e}"))?;
+    let sealing_key = LessSafeKey::new(unbound_key);
+
+    let rng = SystemRandom::new();
+    let mut nonce_bytes = [0u8; 12];
+    rng.fill(&mut nonce_bytes).map_err(|e| format!("Nonce: {e}"))?;
+
+    let nonce = Nonce::assume_unique_for_key(nonce_bytes);
+
+    let mut in_out = plaintext.to_vec();
+    sealing_key
+        .seal_in_place_append_tag(nonce, Aad::empty(), &mut in_out)
+        .map_err(|e| format!("Encrypt: {e}"))?;
+
+    let mut result = Vec::with_capacity(12 + in_out.len());
+    result.extend_from_slice(&nonce_bytes);
+    result.extend_from_slice(&in_out);
+    Ok(result)
+}
+
+/// Decrypt ciphertext (nonce || encrypted || tag).
+fn decrypt_file(ciphertext: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
+    use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+
+    if ciphertext.len() < 28 {
+        return Err("Ciphertext too short".to_string());
+    }
+
+    let unbound_key =
+        UnboundKey::new(&AES_256_GCM, key).map_err(|e| format!("Key init: {e}"))?;
+    let opening_key = LessSafeKey::new(unbound_key);
+
+    let (nonce_bytes, encrypted) = ciphertext.split_at(12);
+    let nonce = Nonce::assume_unique_for_key(
+        nonce_bytes.try_into().map_err(|_| "Invalid nonce".to_string())?,
+    );
+
+    let mut in_out = encrypted.to_vec();
+    let plaintext = opening_key
+        .open_in_place(nonce, Aad::empty(), &mut in_out)
+        .map_err(|_| "Decryption failed: corrupt or wrong key".to_string())?;
+
+    Ok(plaintext.to_vec())
 
 // ─── S3 Helper ──────────────────────────────────────────────────────────────
 

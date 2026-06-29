@@ -22,7 +22,8 @@ use std::io::Cursor;
 use crate::_utils::app_error::AppError;
 
 use super::{
-    FilePreprocessor, PreprocessingConfig, PreprocessingResult, strip_extension, validate_mime_type,
+    FilePreprocessor, PreprocessingConfig, PreprocessingResult, resolve_key_from_config,
+    strip_extension, validate_mime_type,
 };
 
 /// Full-featured local image preprocessor.
@@ -101,10 +102,22 @@ impl FilePreprocessor for LocalFilePreprocessor {
             let webp_file_name =
                 strip_extension(file_name).unwrap_or(file_name).to_string() + ".webp";
 
+            // ── 5. Encrypt (if enabled) ──────────────────────────────────
+            if self.config.encrypt_file {
+                let encrypted = self.encrypt(&webp_buf)?;
+                return Ok(PreprocessingResult {
+                    buffer: encrypted,
+                    content_type: "application/octet-stream".to_string(),
+                    file_name: webp_file_name,
+                    is_encrypted: true,
+                });
+            }
+
             Ok(PreprocessingResult {
                 buffer: webp_buf,
                 content_type: "image/webp".to_string(),
                 file_name: webp_file_name,
+                is_encrypted: false,
             })
         } else {
             // Return as-is (no format conversion)
@@ -113,12 +126,27 @@ impl FilePreprocessor for LocalFilePreprocessor {
                 .write_to(&mut Cursor::new(&mut out_buf), image::ImageFormat::Png)
                 .map_err(|e| AppError::Internal(format!("Image re-encode failed: {e}")))?;
 
+            if self.config.encrypt_file {
+                let encrypted = self.encrypt(&out_buf)?;
+                return Ok(PreprocessingResult {
+                    buffer: encrypted,
+                    content_type: "application/octet-stream".to_string(),
+                    file_name: file_name.to_string(),
+                    is_encrypted: true,
+                });
+            }
+
             Ok(PreprocessingResult {
                 buffer: out_buf,
                 content_type: content_type.to_string(),
                 file_name: file_name.to_string(),
+                is_encrypted: false,
             })
         }
+    }
+
+    fn resolve_encryption_key(&self) -> Result<[u8; super::encryption_utils::KEY_SIZE], AppError> {
+        resolve_key_from_config(&self.config.encryption_key_hex)
     }
 }
 

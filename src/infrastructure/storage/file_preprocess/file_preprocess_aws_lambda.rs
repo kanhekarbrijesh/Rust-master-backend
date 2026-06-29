@@ -57,7 +57,7 @@ use crate::_utils::app_error::AppError;
 
 use super::{
     FilePreprocessor, PreprocessingConfig, PreprocessingResult,
-    file_preprocess_local::LocalFilePreprocessor,
+    file_preprocess_local::LocalFilePreprocessor, resolve_key_from_config,
 };
 
 /// AWS Lambda file preprocessor.
@@ -100,8 +100,12 @@ impl FilePreprocessor for AwsLambdaFilePreprocessor {
         content_type: &str,
         file_name: &str,
     ) -> Result<PreprocessingResult, AppError> {
-        // Delegate to the local preprocessor — identical logic.
+        // Delegate to the local preprocessor — includes encryption if configured.
         self.inner.preprocess(buffer, content_type, file_name)
+    }
+
+    fn resolve_encryption_key(&self) -> Result<[u8; super::encryption_utils::KEY_SIZE], AppError> {
+        resolve_key_from_config(&self.inner.config.encryption_key_hex)
     }
 }
 

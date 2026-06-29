@@ -25,6 +25,8 @@
 //   - Rust target: `rustup target add wasm32-unknown-unknown`
 // ============================================================================
 
+mod encryption;
+
 use serde::{Deserialize, Serialize};
 use worker::*;
 
@@ -166,6 +168,16 @@ async fn handle_upload(mut req: Request, env: &Env) -> Result<Response> {
     let final_content_type = content_type.clone();
     let processed_file_name = file_name;
 
+    // ── 4b. Encryption (if FILE_ENCRYPTION_KEY is set) ──────────────────
+    let (store_buffer, store_content_type, is_encrypted) =
+        if let Ok(enc_key) = encryption::load_encryption_key() {
+            let encrypted = encryption::encrypt_file(&processed_buffer, &enc_key)
+                .map_err(|e| error_response(500, &e).unwrap_err())?;
+            (encrypted, "application/octet-stream".to_string(), true)
+        } else {
+            (processed_buffer, final_content_type.clone(), false)
+        };
+
     // ── 5. Build storage key ────────────────────────────────────────────
     let uuid = uuid_v4();
     let sanitized: String = processed_file_name
@@ -181,8 +193,10 @@ async fn handle_upload(mut req: Request, env: &Env) -> Result<Response> {
     let key = format!("{}/{}", directory.trim_end_matches('/'), uuid);
 
     // ── 6. Store in R2 ──────────────────────────────────────────────────
-    let mut put = bucket.put(&key, processed_buffer);
-    put = put.content_type(&final_content_type);
+    let mut put = bucket.put(&key, store_buffer);
+    put = put.content_type(&store_content_type);
+    // Store encryption marker as custom metadata so the Worker knows to decrypt on read
+    put = put.custom_metadata("x-encrypted", if is_encrypted { "true" } else { "false" });
     put.execute().await?;
 
     let size = buffer.len() as u64;

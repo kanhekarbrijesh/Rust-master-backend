@@ -59,7 +59,10 @@
 
 use crate::_utils::app_error::AppError;
 
-use super::{FilePreprocessor, PreprocessingConfig, PreprocessingResult, validate_mime_type};
+use super::{
+    FilePreprocessor, PreprocessingConfig, PreprocessingResult, resolve_key_from_config,
+    validate_mime_type,
+};
 
 /// Maximum file size for Cloudflare Worker uploads (10 MB).
 const CF_MAX_FILE_SIZE: usize = 10 * 1024 * 1024;
@@ -134,11 +137,28 @@ impl FilePreprocessor for CfWorkerFilePreprocessor {
         //   - Resize if exceeding max_dimension
         //   - Re-encode to WebP
         //   - Return the new buffer
+
+        // ── 4. Encrypt (if enabled) ──────────────────────────────────────
+        if self.config.encrypt_file {
+            let encrypted = self.encrypt(buffer)?;
+            return Ok(PreprocessingResult {
+                buffer: encrypted,
+                content_type: "application/octet-stream".to_string(),
+                file_name: file_name.to_string(),
+                is_encrypted: true,
+            });
+        }
+
         Ok(PreprocessingResult {
             buffer: buffer.to_vec(),
             content_type: content_type.to_string(),
             file_name: file_name.to_string(),
+            is_encrypted: false,
         })
+    }
+
+    fn resolve_encryption_key(&self) -> Result<[u8; super::encryption_utils::KEY_SIZE], AppError> {
+        resolve_key_from_config(&self.config.encryption_key_hex)
     }
 }
 

@@ -48,6 +48,7 @@
 // | AWS Lambda            | file_preprocess_aws_lambda  | cfg flag      |
 // ============================================================================
 
+pub mod encryption_utils;
 pub mod file_preprocess_aws_lambda;
 pub mod file_preprocess_cf_worker;
 pub mod file_preprocess_local;
@@ -65,6 +66,13 @@ pub struct PreprocessingConfig {
     pub convert_to_webp: bool,
     /// Allowed MIME types.  If empty, all types are accepted.
     pub allowed_mime_types: Vec<String>,
+    /// Whether to encrypt the file after preprocessing (AES-256-GCM).
+    /// Encrypted files must be decrypted after authorization check
+    /// before being served to end users.
+    pub encrypt_file: bool,
+    /// Custom encryption key overrides (hex).  If empty, uses
+    /// `FILE_ENCRYPTION_KEY` env var or local dev default.
+    pub encryption_key_hex: String,
 }
 
 impl Default for PreprocessingConfig {
@@ -78,6 +86,8 @@ impl Default for PreprocessingConfig {
                 "image/webp".into(),
                 "image/gif".into(),
             ],
+            encrypt_file: false,
+            encryption_key_hex: String::new(),
         }
     }
 }
@@ -91,6 +101,8 @@ pub struct PreprocessingResult {
     pub content_type: String,
     /// Original file name before processing (may be adjusted during processing).
     pub file_name: String,
+    /// Whether the file buffer is encrypted.
+    pub is_encrypted: bool,
 }
 
 /// Every file preprocessor implements this trait.
@@ -109,6 +121,57 @@ pub trait FilePreprocessor: Send + Sync {
         content_type: &str,
         file_name: &str,
     ) -> Result<PreprocessingResult, AppError>;
+
+    /// Encrypt a preprocessed file buffer using AES-256-GCM.
+    ///
+    /// This is called **after** `preprocess()` when `encrypt_file` is true.
+    /// The encrypted buffer replaces the plaintext buffer in the result.
+    ///
+    /// Default implementation: delegates to `encryption_utils::encrypt_file`.
+    fn encrypt(&self, buffer: &[u8]) -> Result<Vec<u8>, AppError> {
+        let key = self.resolve_encryption_key()?;
+        encryption_utils::encrypt_file(buffer, &key)
+    }
+
+    /// Decrypt a file buffer that was previously encrypted.
+    ///
+    /// This should be called **AFTER** authorization is verified
+    /// in the controller/service layer.
+    ///
+    /// Default implementation: delegates to `encryption_utils::decrypt_file`.
+    fn decrypt(&self, encrypted: &[u8]) -> Result<Vec<u8>, AppError> {
+        let key = self.resolve_encryption_key()?;
+        encryption_utils::decrypt_file(encrypted, &key)
+    }
+
+    /// Resolve the encryption key to use.
+    ///
+    /// Returns the configured key (from config.encryption_key_hex) or
+    /// loads from env `FILE_ENCRYPTION_KEY`, or falls back to dev default.
+    fn resolve_encryption_key(&self) -> Result<[u8; encryption_utils::KEY_SIZE], AppError>;
+}
+
+// ─── Convenience helpers ────────────────────────────────────────────────────
+
+/// Shared key resolution logic used by all preprocessor implementations.
+fn resolve_key_from_config(
+    encryption_key_hex: &str,
+) -> Result<[u8; encryption_utils::KEY_SIZE], AppError> {
+    if encryption_key_hex.is_empty() {
+        encryption_utils::load_encryption_key()
+    } else {
+        let key_bytes = hex::decode(encryption_key_hex)
+            .map_err(|e| AppError::Internal(format!("Invalid encryption_key_hex: {e}")))?;
+        if key_bytes.len() != encryption_utils::KEY_SIZE {
+            return Err(AppError::Internal(format!(
+                "encryption_key_hex must be {} hex chars",
+                encryption_utils::KEY_SIZE * 2
+            )));
+        }
+        let mut key = [0u8; encryption_utils::KEY_SIZE];
+        key.copy_from_slice(&key_bytes);
+        Ok(key)
+    }
 }
 
 // ─── Convenience helper ─────────────────────────────────────────────────────

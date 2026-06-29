@@ -54,3 +54,8 @@ image = { version = "0.25", default-features = false, features = [
     "webp",
 ] }
 webp = "0.3"
+
+# file encryption/decryption for secure storage at rest
+# AES-256-GCM via ring (battle-tested, FIPS 140-2, no unsafe)
+ring = "0.17"
+hex = "0.4"

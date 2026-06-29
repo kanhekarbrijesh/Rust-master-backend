@@ -38,6 +38,8 @@ static LEGACY_PREPROCESSOR: LazyLock<LocalFilePreprocessor> = LazyLock::new(|| {
         max_dimension: MAX_DIMENSION,
         convert_to_webp: true,
         allowed_mime_types: ALLOWED_MIME_TYPES.iter().map(|s| s.to_string()).collect(),
+        encrypt_file: false,
+        encryption_key_hex: String::new(),
     })
 });
 
