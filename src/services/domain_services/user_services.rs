@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sqlx::PgPool;
 use tracing::info;
 
@@ -7,6 +9,7 @@ use crate::{
         user_dto::{UserCreateDto, UserDto, UserUpdateDto},
         user_repo::UserRepo,
     },
+    infrastructure::storage::{storage_types::StorageProvider, storage_util},
 };
 
 /// Pure business-logic service for User domain.
@@ -79,12 +82,25 @@ pub async fn update_user(
     Ok(user.into())
 }
 
-pub async fn delete_user(db: &PgPool, id: i32) -> Result<(), AppError> {
-    let deleted = UserRepo::delete(db, id).await?;
-    if !deleted {
-        return Err(AppError::NotFound("User not found".to_string()));
-    }
-    info!(id, "User deleted successfully");
+pub async fn delete_user(
+    db: &PgPool,
+    storage: Arc<dyn StorageProvider>,
+    serve_prefix: &str,
+    id: i32,
+) -> Result<(), AppError> {
+    // ── Fetch user first to get the profile_image URL for file cleanup ────
+    let user = UserRepo::find_by_id(db, id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    // ── Delete the file from storage (best-effort) ────────────────────────
+    let file_key = storage_util::storage_key_from_url(&user.profile_image, serve_prefix);
+    let _ = storage_util::delete_file_quietly(&*storage, &file_key).await;
+
+    // ── Delete from DB ────────────────────────────────────────────────────
+    UserRepo::delete(db, id).await?;
+
+    info!(id, "User deleted successfully (file cleaned up)");
     Ok(())
 }
 

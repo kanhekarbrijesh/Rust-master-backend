@@ -7,8 +7,7 @@ use crate::{
     configuration::config::Configs,
     infrastructure::{
         db::mongodb::mongodb_connection::mongodb_connection,
-        db::postgresql::psql_connction::psql_connection,
-        storage::storage_types::StorageProvider,
+        db::postgresql::psql_connction::psql_connection, storage::storage_types::StorageProvider,
     },
     services::domain_services::user_roles_psql_services::UserRolesPsqlService,
 };
@@ -25,6 +24,11 @@ pub struct AppState {
     // ─── Storage ─────────────────────────────────────────────────────────
     /// The active storage provider (Local, S3, R2, etc.)
     pub storage: Arc<dyn StorageProvider>,
+    /// The URL prefix used to serve stored files (e.g. "/uploads").
+    /// This is injected from config and used by controllers & services to
+    /// reconstruct storage keys from URLs — keeping it **fully decoupled**
+    /// from any single backend implementation.
+    pub storage_serve_prefix: String,
 }
 
 impl AppState {
@@ -52,26 +56,69 @@ impl AppState {
         // --------------------------------------------------------------- start : postgresql setup --------
 
         // --------------------------------------------------------------- start : storage setup --------
-        let storage: Arc<dyn StorageProvider> = match config.storage_provider.as_str() {
-            "aws" => {
-                // TODO: replace with AwsS3Storage once aws-sdk-s3 is wired up
-                Arc::new(crate::infrastructure::storage::localstorage::LocalStorage::new(
-                    &config.storage_local_path,
-                    &config.storage_local_serve_prefix,
-                ))
-            }
-            "cloudflare" => {
-                // TODO: replace with CloudflareR2Storage once aws-sdk-s3 is wired up
-                Arc::new(crate::infrastructure::storage::localstorage::LocalStorage::new(
-                    &config.storage_local_path,
-                    &config.storage_local_serve_prefix,
-                ))
-            }
-            _ => Arc::new(crate::infrastructure::storage::localstorage::LocalStorage::new(
-                &config.storage_local_path,
-                &config.storage_local_serve_prefix,
-            )),
-        };
+        let (storage, storage_serve_prefix): (Arc<dyn StorageProvider>, String) =
+            match config.storage_provider.as_str() {
+                "aws" => {
+                    let s3_url_base = format!(
+                        "https://{}.s3.{}.amazonaws.com",
+                        config.aws_bucket, config.aws_region
+                    );
+                    (
+                        Arc::new(
+                            crate::infrastructure::storage::aws::AwsS3Storage::new(
+                                &config.aws_bucket,
+                                &config.aws_region,
+                            )
+                            .await,
+                        ),
+                        s3_url_base,
+                    )
+                }
+                "cloudflare" => {
+                    // When r2_public_url is set, it's used as the public-facing
+                    // URL base. Otherwise we fall back to the raw S3 endpoint
+                    // URL which includes the full key (with prefix).
+                    let has_public_url = !config.r2_public_url.is_empty();
+                    let public_url = if has_public_url {
+                        config.r2_public_url.clone()
+                    } else {
+                        String::new()
+                    };
+                    // storage_serve_prefix must match the URL structure so that
+                    // storage_key_from_url() can extract the key during delete.
+                    // With public URL:   {public_url}/{raw_key}
+                    // Without public URL: {endpoint}/{full_key}  (includes prefix)
+                    // We store the serve prefix that matches.
+                    let serve_prefix = if has_public_url {
+                        public_url.clone()
+                    } else {
+                        config.r2_endpoint.clone()
+                    };
+                    (
+                        Arc::new(
+                            crate::infrastructure::storage::cloudflare::CloudflareR2Storage::new(
+                                &config.r2_access_key,
+                                &config.r2_secret_key,
+                                &config.r2_endpoint,
+                                &config.r2_bucket,
+                                &config.r2_key_prefix,
+                                &public_url,
+                            )
+                            .await,
+                        ),
+                        serve_prefix,
+                    )
+                }
+                _ => (
+                    Arc::new(
+                        crate::infrastructure::storage::localstorage::LocalStorage::new(
+                            &config.storage_local_path,
+                            &config.storage_local_serve_prefix,
+                        ),
+                    ),
+                    config.storage_local_serve_prefix.clone(),
+                ),
+            };
         // --------------------------------------------------------------- end : storage setup --------
 
         Self {
@@ -80,6 +127,7 @@ impl AppState {
             psql_pool,
             user_role_repo,
             storage,
+            storage_serve_prefix,
         }
     }
 }

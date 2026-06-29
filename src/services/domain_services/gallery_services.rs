@@ -7,7 +7,7 @@ use crate::{
         gallery_dto::{GalleryCreateDto, GalleryUpdateDto},
         gallery_types::GalleryItem,
     },
-    infrastructure::app_state::AppState,
+    infrastructure::{app_state::AppState, storage::storage_util},
 };
 
 pub async fn create_gallery(
@@ -68,17 +68,31 @@ pub async fn update_gallery(
     Ok(())
 }
 
-pub async fn delete_gallery(state: &AppState, id: ObjectId) -> Result<(), AppError> {
-    let deleted = state
+pub async fn delete_gallery(
+    state: &AppState,
+    serve_prefix: &str,
+    id: ObjectId,
+) -> Result<(), AppError> {
+    // ── Fetch the gallery item first to get the file URL ──────────────────
+    let item = state
+        .mongodb_collections
+        .gallery_mongodb
+        .gallery_repo
+        .find_by_object_id(id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("No matching gallery found to delete".to_string()))?;
+
+    // ── Delete the file from storage (best-effort) ────────────────────────
+    let file_key = storage_util::storage_key_from_url(&item.url, serve_prefix);
+    storage_util::delete_file_quietly(&*state.storage, &file_key).await;
+
+    // ── Delete from DB ────────────────────────────────────────────────────
+    state
         .mongodb_collections
         .gallery_mongodb
         .gallery_repo
         .delete_by_object_id(id)
         .await?;
-    if !deleted {
-        return Err(AppError::NotFound(
-            "No matching gallery found to delete".to_string(),
-        ));
-    }
+
     Ok(())
 }

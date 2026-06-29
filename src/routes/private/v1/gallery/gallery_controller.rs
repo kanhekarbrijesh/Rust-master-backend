@@ -23,6 +23,7 @@ impl GalleryController {
         State(state): State<AppState>,
         multipart: Multipart,
     ) -> Result<impl IntoResponse, AppError> {
+        // Centralised: parses multipart, stores the file, returns result.
         let upload =
             storage_util::handle_multipart_upload(&*state.storage, "gallery", multipart).await?;
         let status = upload
@@ -41,13 +42,7 @@ impl GalleryController {
             Ok(id) => Ok((StatusCode::CREATED, Json(serde_json::json!({"id": id})))),
 
             Err(db_err) => {
-                // Orphan-protection: file was stored but DB insert failed.
-                // Fire-and-forget cleanup — best-effort, non-blocking.
-                let storage = state.storage.clone();
-                let key = upload.store_result.key.clone();
-                tokio::spawn(async move {
-                    let _ = storage.delete_file(&key).await;
-                });
+                storage_util::spawn_orphan_cleanup(state.storage.clone(), &upload.store_result.key);
                 Err(db_err)
             }
         }
@@ -105,7 +100,8 @@ impl GalleryController {
         let obj_id = ObjectId::parse_str(&id)
             .map_err(|_| AppError::BadRequest("Invalid ID string format".to_string()))?;
 
-        gallery_services::delete_gallery(&state, obj_id).await?;
+        // Also deletes the associated file from storage.
+        gallery_services::delete_gallery(&state, &state.storage_serve_prefix, obj_id).await?;
         Ok((
             StatusCode::OK,
             Json(serde_json::json!({ "message": "Gallery item deleted successfully" })),

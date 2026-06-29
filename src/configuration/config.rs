@@ -18,6 +18,18 @@ pub struct Configs {
     pub storage_local_path: String,
     /// URL prefix for served files (used only when storage_provider = "local")
     pub storage_local_serve_prefix: String,
+
+    // ─── Cloudflare R2 ───────────────────────────────────────────────────
+    pub r2_access_key: String,
+    pub r2_secret_key: String,
+    pub r2_endpoint: String,
+    pub r2_bucket: String,
+    pub r2_key_prefix: String,
+    pub r2_public_url: String,
+
+    // ─── AWS S3 ──────────────────────────────────────────────────────────
+    pub aws_region: String,
+    pub aws_bucket: String,
 }
 
 pub fn get_configurations() -> Configs {
